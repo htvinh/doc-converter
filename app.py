@@ -51,6 +51,13 @@ if uploaded_file:
 
     st.success(f"File ready: `{uploaded_file.name}`")
 
+    # Diagram rendering toggle (only relevant for Pandoc/DOCX path)
+    enable_kroki = st.checkbox(
+        "Render Mermaid/PlantUML diagrams via Kroki",
+        value=True,
+        help="Requires internet access. Disable for offline or private documents.",
+    )
+
     # Logic for conversion
     if file_extension in [".md", ".html", ".markdown", ".htm", ".txt"]:
         target_format = "DOCX"
@@ -70,7 +77,8 @@ if uploaded_file:
         output_path = input_path.with_suffix(output_ext)
         
         with st.spinner(f"Converting to {target_format}..."):
-            success = convert_func(input_path, output_path)
+            kwargs = {"enable_kroki": enable_kroki} if convert_func == convert_to_docx else {}
+            success = convert_func(input_path, output_path, **kwargs)
             
             if success and output_path.exists():
                 st.success(f"Conversion to {target_format} complete!")

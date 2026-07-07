@@ -2,31 +2,54 @@ import pypandoc
 import re
 from pathlib import Path
 from config import logger
+from converters.kroki_renderer import render_diagrams
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
+def _set_border(element, border_name: str):
+    border = OxmlElement(f'w:{border_name}')
+    border.set(qn('w:val'), 'single')
+    border.set(qn('w:sz'), '4')
+    border.set(qn('w:space'), '0')
+    border.set(qn('w:color'), '000000')
+    element.append(border)
+
 def _set_table_borders(table):
-    """
-    Surgically adds borders to a table using oxml.
-    """
     tbl = table._tbl
-    tblPr = tbl.get_or_add_tblPr()
-    
-    # Check if tblBorders already exists, if not create it
-    tblBorders = tblPr.find(qn('w:tblBorders'))
-    if tblBorders is None:
-        tblBorders = OxmlElement('w:tblBorders')
-        tblPr.append(tblBorders)
-    
-    # Define border styles
-    for border_name in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
-        border = OxmlElement(f'w:{border_name}')
-        border.set(qn('w:val'), 'single')
-        border.set(qn('w:sz'), '4')  # 1/8 pt
-        border.set(qn('w:space'), '0')
-        border.set(qn('w:color'), '000000')
-        tblBorders.append(border)
+    tblPr = tbl.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        tbl.insert(0, tblPr)
+
+    # Remove the style reference — Pandoc sets "Table" which is a
+    # no-border style that can override our explicit borders.
+    style_el = tblPr.find(qn('w:tblStyle'))
+    if style_el is not None:
+        tblPr.remove(style_el)
+
+    existing = tblPr.find(qn('w:tblBorders'))
+    if existing is not None:
+        tblPr.remove(existing)
+
+    tblBorders = OxmlElement('w:tblBorders')
+    tblPr.append(tblBorders)
+    for name in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
+        _set_border(tblBorders, name)
+
+    for row in table.rows:
+        for cell in row.cells:
+            tcPr = cell._tc.find(qn('w:tcPr'))
+            if tcPr is None:
+                tcPr = OxmlElement('w:tcPr')
+                cell._tc.insert(0, tcPr)
+            existing = tcPr.find(qn('w:tcBorders'))
+            if existing is not None:
+                tcPr.remove(existing)
+            tcBorders = OxmlElement('w:tcBorders')
+            tcPr.append(tcBorders)
+            for name in ['top', 'left', 'bottom', 'right']:
+                _set_border(tcBorders, name)
 
 def _apply_borders_to_docx(file_path: Path):
     """
@@ -68,9 +91,10 @@ def _strip_yaml_frontmatter(content: str) -> str:
                         return "".join(lines[i+1:])
     return content
 
-def convert_to_docx(input_path: Path, output_path: Path) -> bool:
+def convert_to_docx(input_path: Path, output_path: Path, enable_kroki: bool = True) -> bool:
     """
     Converts a file to DOCX using Pandoc with automatic YAML correction.
+    If enable_kroki is True, renders Mermaid/PlantUML diagrams via Kroki.
     """
     try:
         logger.info(f"Starting Pandoc conversion: {input_path} -> {output_path}")
@@ -88,6 +112,8 @@ def convert_to_docx(input_path: Path, output_path: Path) -> bool:
             try:
                 content = input_path.read_text(encoding="utf-8")
                 cleaned_content = _strip_yaml_frontmatter(content)
+                if enable_kroki:
+                    cleaned_content = render_diagrams(cleaned_content, input_path.parent)
                 
                 # Write to a temporary 'clean' file to keep original intact
                 clean_path = input_path.with_name(f"clean_{input_path.name}")
@@ -103,8 +129,10 @@ def convert_to_docx(input_path: Path, output_path: Path) -> bool:
                     outputfile=str(output_path)
                 )
                 
-                # Cleanup clean file
+                # Cleanup clean file and diagram SVGs
                 clean_path.unlink()
+                for f in input_path.parent.glob("kroki_*.svg"):
+                    f.unlink()
                 
                 # Post-process: Add borders
                 _apply_borders_to_docx(output_path)
@@ -138,5 +166,8 @@ def convert_to_docx(input_path: Path, output_path: Path) -> bool:
     except Exception as e:
         logger.error(f"Pandoc conversion failed: {str(e)}", exc_info=True)
         return False
+    finally:
+        for f in input_path.parent.glob("kroki_*.svg"):
+            f.unlink()
 
 

@@ -3,3 +3,4 @@ docling
 pypandoc
 pathlib
 python-docx
+requests
