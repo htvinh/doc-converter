@@ -1,1 +1,2 @@
 pandoc
+libGL.so.1
