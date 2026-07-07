@@ -31,8 +31,8 @@ st.write("ho.tuong.vinh@gmail.com")
 # File uploader
 uploaded_file = st.file_uploader(
     "Upload a document to convert", 
-    type=["md", "html", "docx", "doc", "markdown", "htm", "xls", "xlsx", "csv", "txt", "pdf"],
-    help="Supported formats: .md, .html, .docx, .doc, .markdown, .htm, .xls, .xlsx, .csv, .txt, .pdf"
+    type=["md", "html", "docx", "doc", "markdown", "htm", "xls", "xlsx", "csv", "txt", "pdf", "pptx", "ppt", "pptm", "pptx", "odt", "ods", "odp"],
+    help="Supported formats: .md, .html, .docx, .doc, .markdown, .htm, .xls, .xlsx, .csv, .txt, .pdf, .pptx, .ppt, .pptm, .odt, .ods, .odp"
 )
 
 if uploaded_file:
@@ -64,7 +64,7 @@ if uploaded_file:
         convert_func = convert_to_docx
         output_ext = ".docx"
         mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    elif file_extension in [".docx", ".doc", ".xls", ".xlsx", ".csv", ".pdf"]:
+    elif file_extension in [".docx", ".doc", ".xls", ".xlsx", ".csv", ".pdf", ".pptx", ".ppt", ".pptm", ".odt", ".ods", ".odp"]:
         target_format = "Markdown"
         convert_func = convert_to_markdown
         output_ext = ".md"
