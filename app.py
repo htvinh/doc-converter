@@ -98,6 +98,3 @@ if uploaded_file:
                 else:
                     st.warning("Check the logs for detailed error information.")
 
-# Footer
-st.divider()
-st.caption("Doc Converter Pro | Built with Streamlit, Pandoc, and Docling")

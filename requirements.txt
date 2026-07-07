@@ -1,5 +1,5 @@
 streamlit
-docling
+markitdown[all]
 pypandoc
 pathlib
 python-docx
